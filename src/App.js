@@ -1,80 +1,51 @@
 import React, { useState } from "react";
-import axios from "axios";
-import "./App.css"; // Додано CSS для стилів
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import DashboardPage from "./pages/DashboardPage";
+import LoginPage from "./pages/LoginPage";
+import SignUpPage from "./pages/SignUpPage";
+import { logout } from "./api/auth";
 
-function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loggedIn, setLoggedIn] = useState(false);
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authToken, setAuthToken] = useState("");
 
-  const login = async () => {
-    try {
-      const response = await axios.post("https://localhost:443/login", {
-        email,
-        password,
-      });
-      if (response.status === 200) {
-        setLoggedIn(true);
-        localStorage.setItem("token", response.data);
-        console.log("Token saved:", response.data);
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-      alert("Login failed, please check your credentials");
-    }
+  const handleLogin = (token) => {
+    setIsAuthenticated(true);
+    setAuthToken(token);
   };
 
-  const logout = async () => {
-    const token = localStorage.getItem("token");
+  const handleLogout = async () => {
     try {
-      const response = await axios.post(
-        "https://localhost:443/logout",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 200) {
-        setLoggedIn(false);
-        localStorage.removeItem("token");
-        console.log("Logged out and token removed");
-      }
+      await logout(authToken);
+      setIsAuthenticated(false);
+      setAuthToken("");
     } catch (error) {
-      console.error("Logout failed:", error);
-      alert("Logout failed");
+      console.error("Error logging out:", error);
     }
   };
 
   return (
-    <div className="login-container">
-      {!loggedIn ? (
-        <div className="login-form">
-          <h2>Log in</h2>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button onClick={login}>Log in</button>
-        </div>
-      ) : (
-        <div className="logout-section">
-          <h2>Welcome!</h2>
-          <p>You are logged in!</p>
-          <button onClick={logout}>Logout</button>
-        </div>
-      )}
-    </div>
+    <Router>
+      <Header isAuthenticated={isAuthenticated} onLogout={handleLogout} />
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route
+          path="/login"
+          element={
+            isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage onLogin={handleLogin} />
+          }
+        />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route
+          path="/dashboard"
+          element={isAuthenticated ? <DashboardPage /> : <Navigate to="/login" />}
+        />
+      </Routes>
+      <Footer />
+    </Router>
   );
 }
 
-export default LoginPage;
+export default App;

@@ -1,0 +1,37 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #cacaca;
+}
+
+.header-logo {
+  font-size: 24px;
+  font-weight: bold;
+  color: #000; /* Повертаємо чорний колір */
+  text-decoration: none;
+}
+
+.header-logo:hover {
+  color: #555; /* Невеликий ефект при наведенні */
+}
+
+.header-nav {
+  display: flex;
+  gap: 15px;
+}
+
+.header-button {
+  font-size: 16px;
+  color: #007bff;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 5px 10px;
+}
+
+.header-button:hover {
+  text-decoration: underline;
+}

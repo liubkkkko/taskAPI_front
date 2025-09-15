@@ -1,80 +1,95 @@
 import React, { useState } from "react";
-import axios from "axios";
-import "./App.css"; // Додано CSS для стилів
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Header from "./components/Header";
+import Navigation from "./components/Navigation";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import WorkspacesPage from "./pages/WorkspacesPage";
+import JobsPage from "./pages/JobsPage";
+import ProfilePage from "./pages/ProfilePage";
+import "./App.css";
 
-function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loggedIn, setLoggedIn] = useState(false);
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
-  const login = async () => {
-    try {
-      const response = await axios.post("https://localhost:443/login", {
-        email,
-        password,
-      });
-      if (response.status === 200) {
-        setLoggedIn(true);
-        localStorage.setItem("token", response.data);
-        console.log("Token saved:", response.data);
-      }
-    } catch (error) {
-      console.error("Login failed:", error);
-      alert("Login failed, please check your credentials");
-    }
+  const handleLoginClick = () => {
+    setShowLogin(true);
+    setShowRegister(false);
   };
-
-  const logout = async () => {
-    const token = localStorage.getItem("token");
-    try {
-      const response = await axios.post(
-        "https://localhost:443/logout",
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (response.status === 200) {
-        setLoggedIn(false);
-        localStorage.removeItem("token");
-        console.log("Logged out and token removed");
-      }
-    } catch (error) {
-      console.error("Logout failed:", error);
-      alert("Logout failed");
-    }
+  const handleRegisterClick = () => {
+    setShowRegister(true);
+    setShowLogin(false);
+  };
+  const handleLogoutClick = () => {
+    localStorage.removeItem("token");
+    setIsAuthenticated(false);
+    setShowLogin(false);
+    setShowRegister(false);
   };
 
   return (
-    <div className="login-container">
-      {!loggedIn ? (
-        <div className="login-form">
-          <h2>Log in</h2>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button onClick={login}>Log in</button>
-        </div>
-      ) : (
-        <div className="logout-section">
-          <h2>Welcome!</h2>
-          <p>You are logged in!</p>
-          <button onClick={logout}>Logout</button>
-        </div>
-      )}
-    </div>
+    <Router>
+      <Header
+        isAuthenticated={isAuthenticated}
+        onLoginClick={handleLoginClick}
+        onLogoutClick={handleLogoutClick}
+        onRegisterClick={handleRegisterClick}
+      />
+      <div className="app-layout">
+        <Navigation />
+        <main className="main-content">
+          {showLogin && (
+            <LoginPage
+              onLogin={() => {
+                setIsAuthenticated(true);
+                setShowLogin(false);
+              }}
+            />
+          )}
+          {showRegister && (
+            <RegisterPage
+              onRegisterSuccess={() => {
+                setShowRegister(false);
+                setShowLogin(true);
+              }}
+            />
+          )}
+          {!showLogin && !showRegister && (
+            <Routes>
+              <Route
+                path="/workspaces"
+                element={isAuthenticated ? <WorkspacesPage /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/jobs"
+                element={isAuthenticated ? <JobsPage /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/profile"
+                element={isAuthenticated ? <ProfilePage /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/"
+                element={
+                  isAuthenticated ? (
+                    <Navigate to="/workspaces" />
+                  ) : (
+                    <div style={{ textAlign: "center", marginTop: 100 }}>
+                      <h2>Welcome to Task Manager!</h2>
+                      <p>Log in or sign up to get started.</p>
+                    </div>
+                  )
+                }
+              />
+            </Routes>
+          )}
+        </main>
+      </div>
+      <footer className="footer">© 2025 Task Manager</footer>
+    </Router>
   );
 }
 
-export default LoginPage;
+export default App;

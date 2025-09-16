@@ -16,7 +16,7 @@ function LoginPage({ onLogin }) {
       });
       if (!res.ok) throw new Error("Login failed");
       const data = await res.json();
-      localStorage.setItem("token", data.token);
+      localStorage.setItem("token", data);
       onLogin();
     } catch (err) {
       setError("Невірний email або пароль");

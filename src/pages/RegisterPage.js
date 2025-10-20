@@ -1,22 +1,20 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { apiPost } from "../services/api";
 
-function RegisterPage({ onRegisterSuccess }) {
+function RegisterPage() {
   const [nickname, setNickname] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("https://localhost:443/authors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname, email, password }),
-      });
-      if (!res.ok) throw new Error("Registration failed");
-      onRegisterSuccess();
+      await apiPost("/authors", { nickname, email, password });
+      navigate("/login");
     } catch (err) {
       setError("Помилка реєстрації");
     }

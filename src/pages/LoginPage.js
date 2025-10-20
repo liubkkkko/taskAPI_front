@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../contexts/AuthContext";
 
-function LoginPage({ onLogin }) {
+function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -15,9 +19,11 @@ function LoginPage({ onLogin }) {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) throw new Error("Login failed");
-      const data = await res.json();
-      localStorage.setItem("token", data);
-      onLogin();
+
+      const token = await res.json();  // бекенд повертає токен як рядок
+      login(token);                    // викликаємо login з контексту
+
+      navigate("/workspaces");
     } catch (err) {
       setError("Невірний email або пароль");
     }
@@ -30,14 +36,14 @@ function LoginPage({ onLogin }) {
         type="email"
         placeholder="Email"
         value={email}
-        onChange={e => setEmail(e.target.value)}
+        onChange={(e) => setEmail(e.target.value)}
         required
       />
       <input
         type="password"
         placeholder="Password"
         value={password}
-        onChange={e => setPassword(e.target.value)}
+        onChange={(e) => setPassword(e.target.value)}
         required
       />
       <button type="submit">Log in</button>

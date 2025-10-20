@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useState, useContext } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { apiGet } from "../services/api";
+import { AuthContext } from "../contexts/AuthContext";
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString();
@@ -7,61 +9,83 @@ function formatDate(dateStr) {
 
 function JobsPage() {
   const [jobs, setJobs] = useState([]);
+  const [authors, setAuthors] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const location = useLocation();
-
-  const params = new URLSearchParams(location.search);
-  const workspaceId = params.get("workspaceId");
+  const { id: workspaceId } = useParams();
   const [authorId, setAuthorId] = useState(null);
+  const { logout } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  // Отримати id автора через токен
+  // отримати id автора з токена
   useEffect(() => {
-    if (workspaceId) return; // не треба, якщо workspaceId є
     const fetchAuthorId = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("https://localhost:443/author", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Не вдалося отримати автора");
-        const data = await res.json();
+        const data = await apiGet("/author");
         setAuthorId(data.id);
       } catch (err) {
-        setError("Помилка отримання автора");
+        if (err.message === "Unauthorized") {
+          logout();
+          navigate("/login");
+        } else {
+          setError("Помилка отримання автора");
+        }
         setLoading(false);
       }
     };
     fetchAuthorId();
-  }, [workspaceId]);
+  }, [logout, navigate]);
 
+  // отримати задачі
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const token = localStorage.getItem("token");
         let url = "";
         if (workspaceId) {
-          url = `https://localhost:443/jobs?workspaceId=${workspaceId}`;
+          url = `/jobs/${workspaceId}`;
         } else if (authorId) {
-          url = `https://localhost:443/jobs?authorId=${authorId}`;
+          url = `/jobs?authorId=${authorId}`;
         } else {
-          setLoading(false);
           return;
         }
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Не вдалося отримати задачі");
-        const data = await res.json();
-        setJobs(data);
+
+        const data = await apiGet(url);
+
+        // якщо authorId відомий, залишаємо лише свої завдання
+        const filtered = authorId
+          ? data.filter((job) => job.author_id === authorId)
+          : data;
+
+        setJobs(filtered);
       } catch (err) {
-        setError("Помилка отримання задач");
+        if (err.message === "Unauthorized") {
+          logout();
+          navigate("/login");
+        } else {
+          setError("Помилка отримання задач");
+        }
       } finally {
         setLoading(false);
       }
     };
-    if (workspaceId || authorId) fetchJobs();
-  }, [workspaceId, authorId]);
+
+    if (authorId) fetchJobs();
+  }, [workspaceId, authorId, logout, navigate]);
+
+  // підвантаження авторів
+  useEffect(() => {
+    const fetchAuthor = async (id) => {
+      if (authors[id]) return;
+      try {
+        const data = await apiGet(`/author/${id}`);
+        setAuthors((prev) => ({ ...prev, [id]: data }));
+      } catch (err) {
+        console.error("Помилка отримання автора", err);
+      }
+    };
+
+    jobs.forEach((job) => fetchAuthor(job.author_id));
+  }, [jobs, authors]);
 
   if (loading) return <div>Завантаження...</div>;
   if (error) return <div style={{ color: "red" }}>{error}</div>;
@@ -70,21 +94,30 @@ function JobsPage() {
     <div>
       <h2>
         {workspaceId
-          ? `Задачі для workspace #${workspaceId}`
-          : "Ваші задачі"}
+          ? `Ваші задачі у workspace #${workspaceId}`
+          : "Всі ваші задачі"}
       </h2>
       {jobs.length === 0 ? (
         <p>Немає задач для відображення.</p>
       ) : (
-        jobs.map(job => (
-          <div className="job-card" key={job.id}>
-            <div className="job-title">{job.title}</div>
-            <div className="job-meta">
-              Статус: <b>{job.status}</b> | Автор: {job.author_id} | Створено: {formatDate(job.created_at)}
+        jobs.map((job) => {
+          const author = authors[job.author_id];
+          return (
+            <div className="job-card" key={job.id}>
+              <div className="job-title">{job.title}</div>
+              <div className="job-meta">
+                Статус: <b>{job.status}</b> | Автор:{" "}
+                {author ? (
+                  <Link to={`/author/${author.id}`}>{author.nickname}</Link>
+                ) : (
+                  job.author_id
+                )}{" "}
+                | Створено: {formatDate(job.created_at)}
+              </div>
+              <div className="job-content">{job.content}</div>
             </div>
-            <div className="job-content">{job.content}</div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );

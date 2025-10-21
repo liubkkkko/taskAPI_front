@@ -166,3 +166,34 @@
   color: #008c9e;
   margin-bottom: 6px;
 }
+
+.create-plus {
+  background: #00bcd4;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-form input,
+.create-form textarea,
+.create-form select {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+.create-form button {
+  margin-right: 8px;
+}

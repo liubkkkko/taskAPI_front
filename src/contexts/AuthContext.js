@@ -1,53 +1,87 @@
 import React, { createContext, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiGet, apiPost } from "../services/api";
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("token"));
-  const [username, setUsername] = useState(localStorage.getItem("username") || "");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(true); // нове
 
-  // Завантаження імені користувача при старті
   useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
+    let mounted = true;
 
+    const fetchUser = async () => {
       try {
-        const res = await fetch("https://localhost:443/author", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error("Не вдалося отримати користувача");
-        const data = await res.json();
-        if (data.nickname) {
-          setUsername(data.nickname);
-          localStorage.setItem("username", data.nickname);
+        const data = await apiGet("/author");
+        const nick = data.nickname || data.user?.nickname || "";
+        if (!mounted) return;
+        if (nick) {
+          setUsername(nick);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUsername("");
         }
-      } catch (e) {
-        console.error(e);
-        logout(); // якщо помилка — вихід
+      } catch (err) {
+        // якщо 401 — пробуємо refresh потім повторити запит
+        if (err.status === 401 || err.message === "Unauthorized") {
+          try {
+            await apiPost("/refresh", {});
+            const data2 = await apiGet("/author");
+            const nick2 = data2.nickname || data2.user?.nickname || "";
+            if (!mounted) return;
+            if (nick2) {
+              setUsername(nick2);
+              setIsAuthenticated(true);
+            } else {
+              setIsAuthenticated(false);
+              setUsername("");
+            }
+          } catch (e2) {
+            if (!mounted) return;
+            setIsAuthenticated(false);
+            setUsername("");
+          }
+        } else {
+          if (!mounted) return;
+          setIsAuthenticated(false);
+          setUsername("");
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
     };
 
-    if (isAuthenticated && !username) fetchUser();
-  }, [isAuthenticated, username]);
+    fetchUser();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const login = (token, nickname) => {
-    localStorage.setItem("token", token);
+  const login = (user) => {
+    const nick = typeof user === "string" ? user : user?.nickname || "";
+    setUsername(nick);
     setIsAuthenticated(true);
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
+  const logout = async () => {
+    try {
+      await apiPost("/logout", {});
+    } catch (e) {
+      // ignore
+    }
     setIsAuthenticated(false);
     setUsername("");
-    navigate("/login"); // SPA-перехід після logout
+    // повне перезавантаження щоб очистити UI/state
+    window.location.href = "/login";
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, username, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, username, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

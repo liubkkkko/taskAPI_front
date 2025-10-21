@@ -1,19 +1,18 @@
 const API_BASE = process.env.REACT_APP_API_URL || "https://localhost:443";
 
 export async function apiRequest(path, options = {}) {
-  const token = localStorage.getItem("token");
   const headers = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...options.headers,
+    ...(options.headers || {}),
   };
 
-  const res = await fetch(API_BASE + path, { ...options, headers });
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    headers,
+    credentials: "include", // <- обов'язково, щоб браузер відправляв HttpOnly cookies
+  });
 
   if (res.status === 401) {
-    // Якщо токен протух — видаляємо й кидаємо помилку
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
     throw new Error("Unauthorized");
   }
 
@@ -22,7 +21,14 @@ export async function apiRequest(path, options = {}) {
     throw new Error(msg || "API error");
   }
 
-  return res.json();
+  // Якщо тіло відповіді є пустим, повернемо пустий об'єкт
+  const text = await res.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch (e) {
+    // якщо не JSON — повертаємо як текст
+    return text;
+  }
 }
 
 export function apiGet(path) {
@@ -34,4 +40,15 @@ export function apiPost(path, body) {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export function apiPut(path, body) {
+  return apiRequest(path, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export function apiDelete(path) {
+  return apiRequest(path, { method: "DELETE" });
 }

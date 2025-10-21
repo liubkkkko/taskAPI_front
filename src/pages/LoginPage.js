@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../contexts/AuthContext";
+import { apiPost } from "../services/api";
 
 function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,18 +14,15 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      const res = await fetch("https://localhost:443/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) throw new Error("Login failed");
-
-      const token = await res.json();  // бекенд повертає токен як рядок
-      login(token);                    // викликаємо login з контексту
-
+      // Використовуємо apiPost (credentials: 'include' всередині)
+      const data = await apiPost("/login", { email, password });
+      // бекенд тепер ставить cookies і повертає { user: { ... } }
+      const user = data.user || data;
+      if (!user) throw new Error("Login failed");
+      login(user);
       navigate("/workspaces");
     } catch (err) {
+      console.error(err);
       setError("Невірний email або пароль");
     }
   };

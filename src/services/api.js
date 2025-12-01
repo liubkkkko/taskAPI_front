@@ -1,4 +1,4 @@
-const API_BASE = process.env.REACT_APP_API_URL || "https://localhost:443";
+const API_BASE = "/api";
 
 export async function apiRequest(path, options = {}) {
   const headers = {
